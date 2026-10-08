@@ -1,6 +1,6 @@
 {
-  "name": "Sprechtraining",
-  "short_name": "Sprechen",
+  "name": "SpeakEasy German",
+  "short_name": "SpeakEasy",
   "description": "German listening and speaking practice",
   "start_url": ".",
   "display": "standalone",

@@ -1,4 +1,4 @@
-# Sprechtraining
+# SpeakEasy German
 
 A German listening and speaking trainer for learners from A1 to C2, aimed at working life in Germany.
 

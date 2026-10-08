@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sprechtraining - local German listening & speaking trainer.
+"""SpeakEasy German - local German listening & speaking trainer.
 
 The browser records your voice and speaks German; Whisper (in .venv) turns your
 speech into text on this machine; the tutor runs through the local `claude` CLI or
@@ -40,8 +40,8 @@ try:
     from faster_whisper import WhisperModel
 except ImportError:
     WhisperModel = None
-    if VENV_PYTHON.exists() and not os.environ.get("SPRECHTRAINING_IN_VENV"):
-        os.environ["SPRECHTRAINING_IN_VENV"] = "1"
+    if VENV_PYTHON.exists() and not os.environ.get("SPEAKEASY_IN_VENV"):
+        os.environ["SPEAKEASY_IN_VENV"] = "1"
         os.execv(str(VENV_PYTHON), [str(VENV_PYTHON), *sys.argv])
 
 try:
@@ -85,7 +85,7 @@ def level_info(body):
 
 
 LOCK = threading.Lock()
-LLM_CWD = tempfile.mkdtemp(prefix="sprechtraining-")
+LLM_CWD = tempfile.mkdtemp(prefix="speakeasy-german-")
 
 
 # ---------- storage ----------
@@ -247,7 +247,7 @@ def ask_anthropic(settings, model, system, prompt, role):
 def http_json(url, api_key, payload=None):
     if not url.startswith(("http://", "https://")):
         raise RuntimeError("The server address must start with http:// or https://.")
-    headers = {"Content-Type": "application/json", "User-Agent": "sprechtraining/1.0"}
+    headers = {"Content-Type": "application/json", "User-Agent": "speakeasy-german/1.0"}
     if api_key:
         headers["Authorization"] = f"Bearer {api_key}"
     data = None if payload is None else json.dumps(payload).encode("utf-8")
@@ -648,7 +648,7 @@ if __name__ == "__main__":
         print("Whisper not installed: using the browser's own speech recognition.")
     else:
         threading.Thread(target=get_whisper, daemon=True).start()  # load now, not on first use
-    print(f"Sprechtraining running at http://localhost:{PORT}  (Ctrl+C to stop)")
+    print(f"SpeakEasy German running at http://localhost:{PORT}  (Ctrl+C to stop)")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

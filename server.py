@@ -585,6 +585,7 @@ STATIC_FILES = {
     "/": ("index.html", "text/html; charset=utf-8"),
     "/app.js": ("app.js", "text/javascript; charset=utf-8"),
     "/backend.js": ("backend.js", "text/javascript; charset=utf-8"),
+    "/sw.js": ("sw.js", "text/javascript; charset=utf-8"),
     "/style.css": ("style.css", "text/css; charset=utf-8"),
     "/manifest.json": ("manifest.json", "application/manifest+json"),
     "/icon-192.png": ("icon-192.png", "image/png"),

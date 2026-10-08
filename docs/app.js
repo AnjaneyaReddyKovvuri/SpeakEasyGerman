@@ -948,6 +948,21 @@ function showCard() {
 
 // ---------- start ----------
 
+// Installable app: the service worker makes the browser offer installation, and the button triggers it.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+let installPrompt = null;
+window.addEventListener('beforeinstallprompt', (event) => {
+  event.preventDefault();
+  installPrompt = event;
+  $('#install-btn').hidden = false;
+});
+$('#install-btn').addEventListener('click', async () => {
+  $('#install-btn').hidden = true;
+  if (installPrompt) await installPrompt.prompt();
+  installPrompt = null;
+});
+window.addEventListener('appinstalled', () => { $('#install-btn').hidden = true; });
+
 // Phones only let a page speak after the user has touched it once; this first touch unlocks the voice.
 document.addEventListener('click', () => speechSynthesis.speak(new SpeechSynthesisUtterance('')), { once: true, capture: true });
 

@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Sprechtraining</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1f5fbf">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Sprechen">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <div class="brand">
+    <h1>Sprechtraining</h1>
+    <span id="stats" class="muted"></span>
+  </div>
+  <div class="settings">
+    <label>My level
+      <select id="set-level">
+        <option value="A1">A1 Beginner</option><option value="A2">A2 Elementary</option>
+        <option value="B1">B1 Intermediate</option><option value="B2">B2 Upper intermediate</option>
+        <option value="C1">C1 Advanced</option><option value="C2">C2 Near-native</option>
+      </select>
+    </label>
+    <label>Voice <select id="set-voice"></select></label>
+    <label>Speed <input id="set-rate" type="range" min="0.6" max="1.3" step="0.05"></label>
+    <label>Explanations
+      <select id="set-explain"><option>English</option><option value="simple German">German</option></select>
+    </label>
+    <label>Mic <select id="set-mic"></select></label>
+    <label>Speech
+      <select id="set-stt">
+        <option value="browser">Browser (more accurate)</option>
+        <option value="whisper">Whisper (private, on laptop)</option>
+      </select>
+    </label>
+    <button id="mic-test">Test microphone</button>
+  </div>
+</header>
+
+<div id="warn" class="warn" hidden></div>
+<div id="mic-status" class="status" hidden></div>
+
+<nav>
+  <button data-tab="talk" class="active">Conversation</button>
+  <button data-tab="listen">Listen &amp; retell</button>
+  <button data-tab="shadow">Shadowing</button>
+  <button data-tab="say">Pronunciation</button>
+  <button data-tab="cards">My mistakes <span id="due-badge" class="badge" hidden></span></button>
+  <button data-tab="settings">Settings</button>
+</nav>
+
+<main>
+  <section id="tab-talk">
+    <div class="row">
+      <select id="scenario"></select>
+      <input id="scenario-custom" type="text" placeholder="…or describe your own situation (in English or German)">
+      <button id="talk-start" class="primary">Start</button>
+    </div>
+    <div class="row options">
+      <label><input type="checkbox" id="opt-hide"> Hide Lena's text until I click it (listening practice)</label>
+      <label><input type="checkbox" id="opt-autosend" checked> Send when I stop the microphone</label>
+    </div>
+    <div id="chat" class="chat"><p class="muted">Pick a situation and press Start. Lena speaks German; answer by voice or by typing. Your mistakes are corrected under each of your messages and saved to “My mistakes”.</p></div>
+    <div class="row answer">
+      <button id="talk-mic" class="mic" title="Start / stop microphone">🎤</button>
+      <textarea id="talk-input" rows="2" placeholder="Speak or type your answer in German…"></textarea>
+      <button id="talk-send" class="primary">Send</button>
+    </div>
+  </section>
+
+  <section id="tab-listen" hidden>
+    <div class="row">
+      <input id="listen-topic" type="text" list="topics" placeholder="Topic, e.g. a project delay, onboarding, a customer complaint">
+      <datalist id="topics">
+        <option value="Projektverzögerung und neuer Zeitplan">
+        <option value="Einarbeitung eines neuen Kollegen">
+        <option value="Kundenbeschwerde am Telefon">
+        <option value="Homeoffice-Regelung im Unternehmen">
+        <option value="Ergebnis eines Bewerbungsgesprächs">
+        <option value="Vorstellung eines neuen Software-Tools">
+        <option value="Quartalszahlen und Ziele">
+      </datalist>
+      <select id="listen-length">
+        <option value="short">Short (~40 s)</option>
+        <option value="medium" selected>Medium (~75 s)</option>
+        <option value="long">Long (~2 min)</option>
+      </select>
+      <button id="listen-new" class="primary">New audio</button>
+    </div>
+    <div id="listen-body" hidden>
+      <h2 id="listen-title"></h2>
+      <div class="row">
+        <button id="listen-play">▶ Play</button>
+        <button id="listen-stop">■ Stop</button>
+        <button id="listen-reveal">Show transcript</button>
+        <button id="listen-shadow">Practise in Shadowing →</button>
+      </div>
+      <div id="listen-text" class="panel" hidden></div>
+      <h3>Listen for these</h3>
+      <ol id="listen-questions"></ol>
+      <h3>Now retell it in your own words</h3>
+      <div class="row answer">
+        <button id="retell-mic" class="mic" title="Start / stop microphone">🎤</button>
+        <textarea id="retell-input" rows="4" placeholder="Summarise what you heard, in German…"></textarea>
+        <button id="retell-send" class="primary">Evaluate</button>
+      </div>
+      <div id="retell-result"></div>
+    </div>
+    <p id="listen-empty" class="muted">Generate a short workplace audio, listen without the transcript, then retell it aloud. You get scores, corrections and a model answer.</p>
+  </section>
+
+  <section id="tab-shadow" hidden>
+    <p class="muted">Hear one sentence, repeat it (or type it as dictation), then check. Works with the last “Listen” text or any German text you paste.</p>
+    <textarea id="shadow-source" rows="4" placeholder="Paste German text here…"></textarea>
+    <div class="row"><button id="shadow-load" class="primary">Use this text</button></div>
+    <div id="shadow-body" hidden>
+      <div class="row">
+        <button id="shadow-prev">←</button>
+        <span id="shadow-pos" class="muted"></span>
+        <button id="shadow-next">→</button>
+        <button id="shadow-play">▶ Play sentence</button>
+        <button id="shadow-slow">▶ Slow</button>
+        <button id="shadow-peek">Peek</button>
+      </div>
+      <div id="shadow-sentence" class="panel" hidden></div>
+      <div class="row answer">
+        <button id="shadow-mic" class="mic" title="Start / stop microphone">🎤</button>
+        <textarea id="shadow-input" rows="2" placeholder="Repeat the sentence aloud, or type what you heard…"></textarea>
+        <button id="shadow-check" class="primary">Check</button>
+      </div>
+      <div id="shadow-result"></div>
+    </div>
+  </section>
+
+  <section id="tab-say" hidden>
+    <p class="muted">Listen, say it, and see word by word what the app understood. Green = clearly understood, yellow = understood but unclear, orange = heard a similar word, red = heard something else or nothing.</p>
+    <div class="row">
+      <select id="say-set"></select>
+      <input id="say-custom" type="text" placeholder="…or type any German text to hear and see how it is pronounced">
+      <button id="say-custom-go" class="primary">Show pronunciation</button>
+    </div>
+    <div id="say-tip" class="panel"></div>
+    <div id="say-body">
+      <div class="row">
+        <button id="say-prev">←</button>
+        <span id="say-pos" class="muted"></span>
+        <button id="say-next">→</button>
+      </div>
+      <div id="say-target" class="target"></div>
+      <div class="row">
+        <span class="step">1. Listen</span>
+        <button id="say-play">▶ Listen</button>
+        <button id="say-slow">▶ Slow</button>
+        <button id="say-guide-btn">How to say it</button>
+      </div>
+      <div class="row">
+        <span class="step">2. Say it</span>
+        <button id="say-mic" class="mic" title="Start / stop recording">🎤 Check my pronunciation</button>
+        <button id="say-mine" disabled>▶ My recording</button>
+      </div>
+      <div id="say-guide"></div>
+      <div id="say-result"></div>
+    </div>
+  </section>
+
+  <section id="tab-cards" hidden>
+    <div id="card-area"></div>
+    <details>
+      <summary id="cards-summary">All saved mistakes</summary>
+      <div id="cards-list"></div>
+    </details>
+  </section>
+  <section id="tab-settings" hidden>
+    <h2>AI tutor</h2>
+    <p class="muted">Choose which AI service plays Lena, writes the audios, scores your answers and translates. Speech recognition and the German voice are not affected by this.</p>
+    <p id="llm-current" class="panel"></p>
+    <div class="form">
+      <label>Service <select id="llm-provider"></select></label>
+      <p id="llm-note" class="muted"></p>
+      <label id="llm-url-row">Server address <input id="llm-url" type="text" placeholder="https://…/v1"></label>
+      <label id="llm-key-row">API key <input id="llm-key" type="password" autocomplete="off"></label>
+      <div class="row" id="llm-models-row"><button id="llm-load">Load model list</button></div>
+      <label id="llm-chat-row">Model for conversation (should be fast) <input id="llm-chat" type="text" list="llm-model-list"></label>
+      <label id="llm-eval-row">Model for texts, scoring and pronunciation (should be accurate) <input id="llm-eval" type="text" list="llm-model-list" placeholder="empty = same as the conversation model"></label>
+      <datalist id="llm-model-list"></datalist>
+      <div id="whisper-block" hidden>
+        <h2>Speech recognition (optional)</h2>
+        <p class="muted">Normally the phone's own speech recognition is used. With a Groq (free tier) or OpenAI key, Whisper can be used instead: set “Speech” at the top to “Whisper”. It works in every browser and lets you replay your own recording in the Pronunciation tab. If your AI service above is already Groq or OpenAI, its key is used and you can leave this empty.</p>
+        <label>Whisper service <select id="whisper-service"><option value="groq">Groq</option><option value="openai">OpenAI</option></select></label>
+        <label>API key for Whisper <input id="whisper-key" type="password" autocomplete="off"></label>
+        <label>Whisper model <input id="whisper-model" type="text" placeholder="empty = the service's standard model"></label>
+      </div>
+      <div class="row"><button id="llm-save" class="primary">Save and test</button></div>
+      <div id="llm-result"></div>
+    </div>
+  </section>
+</main>
+<script src="backend.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

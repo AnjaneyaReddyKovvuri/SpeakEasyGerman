@@ -397,7 +397,7 @@ function showTab(name) {
   for (const t of tabs) $(`#tab-${t}`).hidden = t !== name;
   for (const b of document.querySelectorAll('nav button')) b.classList.toggle('active', b.dataset.tab === name);
   if (name === 'cards') loadCards();
-  if (name === 'settings') loadLlm();
+  if (name === 'settings') { loadLlm(); showInstallHelp(); }
   if (name === 'shadow' && !$('#shadow-source').value && listening) $('#shadow-source').value = listening.text;
 }
 for (const b of document.querySelectorAll('nav button')) b.addEventListener('click', () => showTab(b.dataset.tab));
@@ -960,17 +960,44 @@ function showCard() {
 // Installable app: the service worker makes the browser offer installation, and the button triggers it.
 if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
 let installPrompt = null;
+
+// Browsers differ in how (and whether) they offer installation, so Settings explains it for this one.
+function showInstallHelp() {
+  const ua = navigator.userAgent;
+  let text;
+  if (matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+    text = '✓ Installed: you are using the installed app right now.';
+  } else if (installPrompt) {
+    text = 'Ready to install: press the blue “Install app” button at the top of the page.';
+  } else if (/iPhone|iPad/.test(ua)) {
+    text = 'iPhone or iPad: open this page in Safari, tap the Share button, then “Add to Home Screen”.';
+  } else if (/; wv\)|FBAN|FBAV|Instagram|WhatsApp|Line\//.test(ua)) {
+    text = 'This page is open inside another app, which cannot install it. Tap ⋮ and choose “Open in Chrome”, then come back to this tab.';
+  } else if (/SamsungBrowser/.test(ua)) {
+    text = 'Samsung Internet: tap the ☰ menu at the bottom, then “Add page to”, then “Home screen”. For the best speech recognition, open this page in Chrome instead and install it from there.';
+  } else if (/Firefox/.test(ua)) {
+    text = 'Firefox: tap ⋮, then “Add app to Home screen”. Speaking works better in Chrome, so installing from Chrome is recommended.';
+  } else if (/Android/.test(ua)) {
+    text = 'Chrome: tap ⋮ at the top right, then “Add to Home screen”, then “Install”. This is not offered in an Incognito tab, or if the app is already installed (look for “SpeakEasy” in your app list; the menu then says “Open SpeakEasy”).';
+  } else {
+    text = 'Chrome or Edge on a computer: click the install icon at the right end of the address bar, or the browser menu, then “Install SpeakEasy German”.';
+  }
+  $('#install-help').textContent = text;
+}
+
 window.addEventListener('beforeinstallprompt', (event) => {
   event.preventDefault();
   installPrompt = event;
   $('#install-btn').hidden = false;
+  showInstallHelp();
 });
 $('#install-btn').addEventListener('click', async () => {
   $('#install-btn').hidden = true;
   if (installPrompt) await installPrompt.prompt();
   installPrompt = null;
 });
-window.addEventListener('appinstalled', () => { $('#install-btn').hidden = true; });
+window.addEventListener('appinstalled', () => { $('#install-btn').hidden = true; installPrompt = null; showInstallHelp(); });
+showInstallHelp();
 
 // Phones only let a page speak after the user has touched it once; this first touch unlocks the voice.
 document.addEventListener('click', () => speechSynthesis.speak(new SpeechSynthesisUtterance('')), { once: true, capture: true });

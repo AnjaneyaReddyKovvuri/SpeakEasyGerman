@@ -285,7 +285,12 @@ def llm_view(_body=None):
                          "has_key": bool(s["api_key"]), "key_hint": s["api_key"][-4:]}
     providers = [{"id": pid, "label": p["label"], "note": p["note"], "kind": p["kind"],
                   "available": p["kind"] != "anthropic" or anthropic is not None} for pid, p in PROVIDERS.items()]
-    return {"provider": cfg["provider"], "providers": providers, "settings": settings}
+    current = provider_settings(cfg, cfg["provider"])
+    profiles = [{"name": name, "label": PROVIDERS[p["provider"]]["label"], "chat_model": p.get("chat_model", ""),
+                 "key_hint": p.get("api_key", "")[-4:],
+                 "active": p["provider"] == cfg["provider"] and all(p.get(k, "") == current[k] for k in current)}
+                for name, p in cfg.get("profiles", {}).items() if p.get("provider") in PROVIDERS]
+    return {"provider": cfg["provider"], "providers": providers, "settings": settings, "profiles": profiles}
 
 
 def merged_settings(body):
@@ -306,8 +311,36 @@ def llm_save(body):
         cfg = read_config()
         cfg["provider"] = provider
         cfg["settings"][provider] = settings
-        save(CONFIG_FILE, cfg)
-        CONFIG_FILE.chmod(0o600)  # it holds API keys
+        name = str(body.get("profile_name") or "").strip()[:40]
+        if name:  # a named setup is kept for one-tap switching
+            cfg.setdefault("profiles", {})[name] = {"provider": provider, **settings}
+        write_config(cfg)
+    return llm_view()
+
+
+def write_config(cfg):
+    save(CONFIG_FILE, cfg)
+    CONFIG_FILE.chmod(0o600)  # it holds API keys
+
+
+def llm_use(body):
+    """Switches to a saved setup."""
+    with LOCK:
+        cfg = read_config()
+        profile = cfg.get("profiles", {}).get(body.get("name"))
+        if not profile or profile.get("provider") not in PROVIDERS:
+            raise RuntimeError("That saved setup no longer exists.")
+        cfg["provider"] = profile["provider"]
+        cfg["settings"][profile["provider"]] = {k: v for k, v in profile.items() if k != "provider"}
+        write_config(cfg)
+    return llm_view()
+
+
+def llm_forget(body):
+    with LOCK:
+        cfg = read_config()
+        cfg.get("profiles", {}).pop(body.get("name"), None)
+        write_config(cfg)
     return llm_view()
 
 
@@ -569,6 +602,8 @@ POST_ROUTES = {
     "/api/translate": translate,
     "/api/pronounce": pronounce,
     "/api/llm": llm_save,
+    "/api/llm/use": llm_use,
+    "/api/llm/forget": llm_forget,
     "/api/llm/models": llm_models,
     "/api/llm/test": llm_test,
     "/api/cards/review": cards_review,

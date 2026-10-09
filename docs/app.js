@@ -839,6 +839,16 @@ function renderLlm(data) {
   $('#llm-current').textContent = ready
     ? `Now in use: ${llm.providers.find((p) => p.id === llm.provider).label}`
     : 'Welcome! To start, choose an AI service below, paste its API key, load the model list, pick a model and press “Save and test”.';
+  const profiles = llm.profiles || [];
+  $('#llm-name').value = (profiles.find((p) => p.active) || {}).name || '';
+  $('#llm-profiles').replaceChildren(
+    profiles.length ? el('h3', {}, 'Saved setups') : null,
+    ...profiles.map((p) => el('div', { class: 'card-row' },
+      el('span', {}, el('b', {}, p.name), ` · ${p.label}${p.chat_model ? ` · ${p.chat_model}` : ''}${p.key_hint ? ` · key …${p.key_hint}` : ''}`,
+        p.active ? el('span', { class: 'ok' }, '  ✓ in use') : null),
+      el('span', {},
+        p.active ? null : el('button', { class: 'link', onclick: () => switchSetup('/api/llm/use', p.name, `Switched to “${p.name}”.`) }, 'Use'),
+        el('button', { class: 'link', onclick: () => switchSetup('/api/llm/forget', p.name, `Removed “${p.name}” from the saved setups.`) }, 'Delete')))));
   $('#whisper-block').hidden = !llm.whisper;  // only the standalone app takes a Whisper key
   if (llm.whisper) {
     $('#whisper-service').value = llm.whisper.service;
@@ -850,7 +860,18 @@ function renderLlm(data) {
   showProvider();
 }
 
+async function switchSetup(path, name, message) {
+  try {
+    renderLlm(await api(path, { name }));
+    useWhisper = (await api('/api/config')).whisper;
+    llmMessage(message, true);
+  } catch (err) {
+    llmMessage(err.message, false);
+  }
+}
+
 const llmForm = () => ({
+  profile_name: $('#llm-name').value.trim(),
   provider: $('#llm-provider').value,
   api_key: $('#llm-key').value.trim(),
   base_url: $('#llm-url').value.trim(),

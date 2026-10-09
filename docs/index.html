@@ -183,6 +183,7 @@
     <h2>AI tutor</h2>
     <p class="muted">Choose which AI service plays Lena, writes the audios, scores your answers and translates. Speech recognition and the German voice are not affected by this.</p>
     <p id="llm-current" class="panel"></p>
+    <div id="llm-profiles"></div>
     <div class="form">
       <label>Service <select id="llm-provider"></select></label>
       <p id="llm-note" class="muted"></p>
@@ -198,6 +199,8 @@
         <label>API key for Whisper <input id="whisper-key" type="password" autocomplete="off"></label>
         <label>Whisper model <input id="whisper-model" type="text" placeholder="empty = the service's standard model"></label>
       </div>
+      <label>Name for this setup (optional) <input id="llm-name" type="text" maxlength="40" placeholder="e.g. Groq free, Gemini, Claude paid"></label>
+      <p class="muted">Give it a name to keep it in “Saved setups”, so you can switch between keys and services with one tap.</p>
       <div class="row"><button id="llm-save" class="primary">Save and test</button></div>
       <div id="llm-result"></div>
     </div>

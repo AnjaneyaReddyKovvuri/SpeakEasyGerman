@@ -171,7 +171,13 @@ const Standalone = (() => {
       const s = providerSettings(cfg, id);
       settings[id] = { base_url: s.base_url, chat_model: s.chat_model, eval_model: s.eval_model, has_key: !!s.api_key, key_hint: s.api_key.slice(-4) };
     }
+    const current = providerSettings(cfg, cfg.provider);
+    const profiles = Object.entries(cfg.profiles || {}).filter(([, p]) => PROVIDERS[p.provider]).map(([name, p]) => ({
+      name, label: PROVIDERS[p.provider].label, chat_model: p.chat_model || '', key_hint: (p.api_key || '').slice(-4),
+      active: p.provider === cfg.provider && Object.keys(current).every((k) => (p[k] || '') === current[k]),
+    }));
     return {
+      profiles,
       provider: cfg.provider,
       providers: Object.entries(PROVIDERS).map(([id, p]) => ({ id, label: p.label, note: p.note, kind: p.kind, available: true })),
       settings,
@@ -186,9 +192,30 @@ const Standalone = (() => {
     for (const key of ['api_key', 'base_url', 'chat_model', 'eval_model']) if ((body[key] || '').trim()) settings[key] = body[key].trim();
     cfg.provider = body.provider;
     cfg.settings[body.provider] = settings;
+    const name = (body.profile_name || '').trim().slice(0, 40);
+    if (name) (cfg.profiles ??= {})[name] = { provider: body.provider, ...settings };  // kept for one-tap switching
     if (body.whisper_service) cfg.whisper.service = body.whisper_service;
     if ((body.whisper_key || '').trim()) cfg.whisper.api_key = body.whisper_key.trim();
     cfg.whisper.model = (body.whisper_model || '').trim();
+    write('config', cfg);
+    return llmView();
+  }
+
+  // Switches to a saved setup.
+  function llmUse({ name }) {
+    const cfg = config();
+    const profile = (cfg.profiles || {})[name];
+    if (!profile || !PROVIDERS[profile.provider]) throw new Error('That saved setup no longer exists.');
+    const { provider, ...settings } = profile;
+    cfg.provider = provider;
+    cfg.settings[provider] = settings;
+    write('config', cfg);
+    return llmView();
+  }
+
+  function llmForget({ name }) {
+    const cfg = config();
+    delete (cfg.profiles || {})[name];
     write('config', cfg);
     return llmView();
   }
@@ -398,6 +425,8 @@ Answer with JSON only:
     '/api/stats': statsSummary,
     '/api/log': ({ key }) => { if (key === 'shadow' || key === 'pron') bump(key); return { ok: true }; },
     '/api/llm': (body) => (body ? llmSave(body) : llmView()),
+    '/api/llm/use': llmUse,
+    '/api/llm/forget': llmForget,
     '/api/llm/models': listModels,
     '/api/llm/test': llmTest,
   };

@@ -231,21 +231,28 @@ async function startRecording({ button, textarea, onStop, clear, context = '', h
 // Fallback without Whisper: the browser's own recognition. Returns a stop function.
 function startBrowserRecognition({ button, textarea, onStop, clear }) {
   if (!SR) { showWarnings(); return null; }
-  let active = true, committed = '', session = '';
+  let active = true, detached = false, committed = '', session = '';
   const base = textarea.value.trim() ? textarea.value.trim() + ' ' : '';
   const rec = new SR();
   rec.lang = 'de-DE';
-  // Android repeats earlier words in continuous mode, so there we take one phrase at a time and restart.
-  rec.continuous = !/Android/.test(navigator.userAgent);
+  rec.continuous = true;
   rec.interimResults = true;
+  // Desktop Chrome sends each phrase as a separate result; Android repeats everything said so far in
+  // each new result. Joining this way gives the right text in both cases.
+  const join = (sofar, next) => {
+    next = next.trim();
+    if (!next) return sofar;
+    return next.toLowerCase().startsWith(sofar.toLowerCase()) ? next : `${sofar} ${next}`;
+  };
   rec.onresult = (e) => {
-    let interim = '';
-    session = '';
+    if (detached) return;  // the text was already sent: later results must not refill the box
+    let finals = '', interim = '';
     for (const result of e.results) {
-      if (result.isFinal) session += result[0].transcript + ' ';
+      if (result.isFinal) finals = join(finals, result[0].transcript);
       else interim += result[0].transcript;
     }
-    textarea.value = (base + committed + session + interim).replace(/\s+/g, ' ');
+    session = finals ? `${finals} ` : '';
+    textarea.value = (base + committed + join(finals, interim)).replace(/\s+/g, ' ');
   };
   rec.onstart = () => micStatus('🎤 Listening… speak German now, then click the microphone again.');
   rec.onspeechstart = () => micStatus('🎤 I can hear you…');
@@ -264,6 +271,7 @@ function startBrowserRecognition({ button, textarea, onStop, clear }) {
     }
     clear();
     button.classList.remove('rec');
+    if (detached) return micStatus('');
     textarea.value = textarea.value.trim();
     micLog(`browser recognised: ${committed}`);
     if (!committed.trim() && useWhisper) {
@@ -280,12 +288,13 @@ function startBrowserRecognition({ button, textarea, onStop, clear }) {
   };
   button.classList.add('rec');
   rec.start();
-  return () => { active = false; rec.stop(); };
+  // detach = stop listening and leave the text box alone (used when its text has just been sent)
+  return (detach) => { active = false; detached = !!detach; rec.stop(); };
 }
 
 // Toggle button that puts spoken German into a textarea. Calls onStop once the text is there.
-// getContext (optional) returns German text related to what will be said, to help Whisper.
-function attachMic(button, textarea, onStop, getContext) {
+// Returns {release()} to stop a microphone that is still listening when its text gets used.
+function attachMic(button, textarea, onStop) {
   let stop = null, starting = false;
   button.addEventListener('click', async () => {
     micLog(`mic button clicked (${stop ? 'stop' : starting ? 'ignored, still starting' : 'start'}) whisper=${useWhisper} stt=${settings.stt}`);
@@ -293,11 +302,19 @@ function attachMic(button, textarea, onStop, getContext) {
     if (stop) return stop();
     speechSynthesis.cancel();
     starting = true;
-    const session = { button, textarea, onStop, clear: () => { stop = null; }, context: getContext ? getContext() : '' };
+    const session = { button, textarea, onStop, clear: () => { stop = null; } };
     const viaWhisper = useWhisper && (settings.stt === 'whisper' || !SR);
     stop = viaWhisper ? await startRecording(session) : startBrowserRecognition(session);
     starting = false;
   });
+  return {
+    release() {
+      if (!stop) return;
+      const end = stop;
+      stop = null;
+      end(true);
+    },
+  };
 }
 
 async function testMicrophone() {
@@ -452,8 +469,15 @@ $('#talk-start').addEventListener('click', () => withBusy($('#talk-start'), asyn
 
 function sendTalk() {
   const text = $('#talk-input').value.trim();
-  if (!text || $('#talk-send').disabled) return;
+  if (!text) return;
+  if ($('#talk-send').disabled) {
+    // Lena is still answering the previous turn: send this one as soon as she has finished.
+    clearTimeout(sendTalk.retry);
+    sendTalk.retry = setTimeout(sendTalk, 400);
+    return;
+  }
   if (!scenario) return showWarnings('Press Start first to begin a conversation.');
+  talkMic.release();  // a microphone left on would write the sent words back into the box
   $('#talk-input').value = '';
   history.push({ role: 'learner', text });
   const bubble = addBubble('learner', text);
@@ -463,8 +487,7 @@ $('#talk-send').addEventListener('click', sendTalk);
 $('#talk-input').addEventListener('keydown', (e) => {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendTalk(); }
 });
-attachMic($('#talk-mic'), $('#talk-input'), () => { if ($('#opt-autosend').checked) sendTalk(); },
-  () => history.filter((t) => t.role === 'tutor').slice(-1).map((t) => t.text).join(''));
+const talkMic = attachMic($('#talk-mic'), $('#talk-input'), () => { if ($('#opt-autosend').checked) sendTalk(); });
 
 // ---------- listen & retell ----------
 
@@ -527,8 +550,7 @@ $('#retell-send').addEventListener('click', () => {
         englishToggle(r.model)));
   });
 });
-attachMic($('#retell-mic'), $('#retell-input'), null,
-  () => (listening ? `${listening.title}. ${(listening.vocab || []).map((v) => v.de).join(', ')}.` : ''));
+attachMic($('#retell-mic'), $('#retell-input'));
 
 // ---------- shadowing & dictation ----------
 
@@ -559,6 +581,7 @@ function compareWords(original, said) {
 }
 
 function showSentence() {
+  shadowMic.release();
   $('#shadow-pos').textContent = `Sentence ${position + 1} of ${sentences.length}`;
   $('#shadow-sentence').hidden = true;
   $('#shadow-sentence').replaceChildren(el('div', {}, sentences[position]), ...englishToggle(sentences[position]));
@@ -598,7 +621,7 @@ $('#shadow-play').addEventListener('click', () => speak(sentences[position]));
 $('#shadow-slow').addEventListener('click', () => speak(sentences[position], 0.7));
 $('#shadow-peek').addEventListener('click', () => { $('#shadow-sentence').hidden = !$('#shadow-sentence').hidden; });
 $('#shadow-check').addEventListener('click', checkShadow);
-attachMic($('#shadow-mic'), $('#shadow-input'), checkShadow);
+const shadowMic = attachMic($('#shadow-mic'), $('#shadow-input'), checkShadow);
 
 // ---------- pronunciation ----------
 

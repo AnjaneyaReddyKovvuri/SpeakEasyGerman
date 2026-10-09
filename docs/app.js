@@ -879,7 +879,9 @@ $('#llm-chat-pick').addEventListener('change', (e) => { $('#llm-chat').value = e
 $('#llm-eval-pick').addEventListener('change', (e) => { $('#llm-eval').value = e.target.value; });
 $('#llm-load').addEventListener('click', () => lockButton($('#llm-load'), async () => {
   try {
-    const { models } = await api('/api/llm/models', llmForm());
+    // Leave out models that cannot hold a conversation (speech, voices, embeddings, safety filters, images).
+    const notChat = /whisper|tts|speech|transcri|embed|guard|moderation|rerank|image|dall-e|orpheus|playai|veo|imagen/i;
+    const models = (await api('/api/llm/models', llmForm())).models.filter((m) => !notChat.test(m));
     // Real dropdowns: phone browsers do not show suggestion lists on text boxes.
     for (const [pick, input, first] of [['#llm-chat-pick', '#llm-chat', 'Choose a model…'], ['#llm-eval-pick', '#llm-eval', 'Same as the conversation model']]) {
       $(pick).replaceChildren(el('option', { value: '' }, first), ...models.map((m) => el('option', { value: m }, m)));

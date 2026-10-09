@@ -827,7 +827,7 @@ function showProvider() {
   $('#llm-key').placeholder = saved.has_key ? `saved (ends in ${saved.key_hint}); leave empty to keep it` : 'paste your key here';
   $('#llm-chat').value = saved.chat_model;
   $('#llm-eval').value = saved.eval_model;
-  $('#llm-model-list').replaceChildren();
+  $('#llm-chat-pick').hidden = $('#llm-eval-pick').hidden = true;
   $('#llm-result').replaceChildren();
 }
 
@@ -875,11 +875,18 @@ async function lockButton(button, work) {
 }
 
 $('#llm-provider').addEventListener('change', showProvider);
+$('#llm-chat-pick').addEventListener('change', (e) => { $('#llm-chat').value = e.target.value; });
+$('#llm-eval-pick').addEventListener('change', (e) => { $('#llm-eval').value = e.target.value; });
 $('#llm-load').addEventListener('click', () => lockButton($('#llm-load'), async () => {
   try {
     const { models } = await api('/api/llm/models', llmForm());
-    $('#llm-model-list').replaceChildren(...models.map((m) => el('option', { value: m })));
-    llmMessage(`${models.length} models found. Click into a model box to choose one.`, true);
+    // Real dropdowns: phone browsers do not show suggestion lists on text boxes.
+    for (const [pick, input, first] of [['#llm-chat-pick', '#llm-chat', 'Choose a model…'], ['#llm-eval-pick', '#llm-eval', 'Same as the conversation model']]) {
+      $(pick).replaceChildren(el('option', { value: '' }, first), ...models.map((m) => el('option', { value: m }, m)));
+      $(pick).value = models.includes($(input).value) ? $(input).value : '';
+      $(pick).hidden = false;
+    }
+    llmMessage(`${models.length} models found. Choose one from each list below, then press “Save and test”.`, true);
   } catch (err) {
     llmMessage(`Could not load the model list: ${err.message}`, false);
   }

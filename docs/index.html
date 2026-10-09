@@ -187,9 +187,8 @@
       <label id="llm-url-row">Server address <input id="llm-url" type="text" placeholder="https://…/v1"></label>
       <label id="llm-key-row">API key <input id="llm-key" type="password" autocomplete="off"></label>
       <div class="row" id="llm-models-row"><button id="llm-load">Load model list</button></div>
-      <label id="llm-chat-row">Model for conversation (should be fast) <input id="llm-chat" type="text" list="llm-model-list"></label>
-      <label id="llm-eval-row">Model for texts, scoring and pronunciation (should be accurate) <input id="llm-eval" type="text" list="llm-model-list" placeholder="empty = same as the conversation model"></label>
-      <datalist id="llm-model-list"></datalist>
+      <label id="llm-chat-row">Model for conversation (should be fast) <select id="llm-chat-pick" hidden></select><input id="llm-chat" type="text" placeholder="model name"></label>
+      <label id="llm-eval-row">Model for texts, scoring and pronunciation (should be accurate) <select id="llm-eval-pick" hidden></select><input id="llm-eval" type="text" placeholder="empty = same as the conversation model"></label>
       <div id="whisper-block" hidden>
         <h2>Speech recognition (optional)</h2>
         <p class="muted">Normally the phone's own speech recognition is used. With a Groq (free tier) or OpenAI key, Whisper can be used instead: set “Speech” at the top to “Whisper”. It works in every browser and lets you replay your own recording in the Pronunciation tab. If your AI service above is already Groq or OpenAI, its key is used and you can leave this empty.</p>
